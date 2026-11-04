@@ -37,9 +37,9 @@
   .btn.off { opacity: .35; }
   #btnSmash.super { background: rgba(255,150,40,.95); animation: glow .5s infinite alternate; }
   @keyframes glow { from { box-shadow: inset 0 -6px 0 rgba(0,0,0,.28), 0 0 4px #ffd84a; } to { box-shadow: inset 0 -6px 0 rgba(0,0,0,.28), 0 0 22px #ffd84a; } }
-  #btnJump  { width: 90px; height: 90px; right: 14px;  bottom: calc(22px + env(safe-area-inset-bottom)); background: rgba(58,184,90,.78); }
-  #btnSmash { width: 78px; height: 78px; right: 112px; bottom: calc(34px + env(safe-area-inset-bottom)); background: rgba(228,68,56,.78); }
-  #btnGrab  { width: 62px; height: 62px; right: 34px;  bottom: calc(124px + env(safe-area-inset-bottom)); background: rgba(70,118,230,.78); }
+  #btnJump  { width: 104px; height: 104px; right: 12px;  bottom: calc(18px + env(safe-area-inset-bottom)); background: rgba(58,184,90,.78); }
+  #btnSmash { width: 88px; height: 88px; right: 124px; bottom: calc(30px + env(safe-area-inset-bottom)); background: rgba(228,68,56,.78); }
+  #btnGrab  { width: 72px; height: 72px; right: 30px;  bottom: calc(134px + env(safe-area-inset-bottom)); background: rgba(70,118,230,.78); }
   #btnMenu  { position: absolute; top: calc(env(safe-area-inset-top) + 2px); right: 50%; transform: translateX(50%);
     font: 8px 'Press Start 2P', monospace; color: #fff; background: rgba(0,0,0,.4); border: 2px solid rgba(255,255,255,.4);
     padding: 4px 6px; border-radius: 4px; }
@@ -78,6 +78,9 @@
   .row { display: flex; gap: 8px; justify-content: center; }
   .sbtn { font: 8px 'Press Start 2P', monospace; color: #fff; background: rgba(0,0,0,.4); border: 2px solid rgba(255,255,255,.35); border-radius: 5px; padding: 8px 10px; }
   .sbtn:active { transform: scale(.95); }
+  .seg .sbtn.sel { border-color: #ffd84a; color: #ffd84a; background: rgba(255,216,74,.15); }
+  #menu { gap: 10px; }
+  #menu .title { font-size: 24px; }
   #splash { background: radial-gradient(ellipse at 50% 35%, rgba(90,50,150,.55), rgba(12,6,30,.85) 75%); }
   #splash .title { font-size: 40px; animation: bob 1.6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-6px); } }
@@ -123,7 +126,11 @@
   <div class="screen" id="menu">
     <div class="title"><span class="ly">LYLA</span><span class="vs">VS</span><span class="er">ERIK</span></div>
     <div class="sub">TOWER WRECKERS</div>
-    <div class="pick">CHOOSE YOUR WRECKER</div>
+    <div class="pick">PICK A TOWER</div>
+    <div class="towers" id="towers"></div>
+    <div class="row seg" id="modes"><button class="sbtn" data-m="vs">VS COMPUTER</button><button class="sbtn" data-m="solo">SOLO PRACTICE</button></div>
+    <div class="row seg" id="diffs"><button class="sbtn" data-d="easy">EASY</button><button class="sbtn" data-d="normal">NORMAL</button><button class="sbtn" data-d="hard">HARD</button></div>
+    <div class="pick">TAP YOUR WRECKER TO START</div>
     <div class="cards">
       <button class="card" data-char="lyla">
         <canvas width="20" height="21"></canvas>
@@ -150,10 +157,8 @@
         <div class="perk">DOUBLE JUMP<br>SUPER: SUGAR RUSH</div>
       </button>
     </div>
-    <div class="pick">PICK A TOWER</div>
-    <div class="towers" id="towers"></div>
     <div class="row"><button class="sbtn" id="btnHow">HOW TO PLAY</button><button class="sbtn musicBtn">MUSIC: ON</button></div>
-    <div class="hint">THE OTHER ONE IS THE CPU &middot; MOST POINTS WINS<br>BEAT A TOWER TO UNLOCK THE NEXT</div>
+    <div class="hint" id="modeHint"></div>
   </div>
 
   <div class="screen" id="pause">
@@ -177,6 +182,7 @@
       &nbsp; tap again to <i>throw</i> it at your rival<br>
       <b>SUPER</b> fill the meter, then hold + let go SMASH<br>
       <br>
+      Wreck the <b>goal</b> (shown top right) to unlock the roof.<br>
       First to the roof <b>+2500</b>. Most points wins!<br>
       Wreck too much and <b>HUNTER</b> comes home.<br>
       Run when you see his <i>!</i> &middot; or bop him first.
@@ -215,7 +221,7 @@ const STEP = 1 / 60;
 // hazards: seconds between grandmas / pigeons, and the row where wind gusts start.
 const LEVELS = [
   {
-    name: 'MAPLE APARTMENTS', roof: 59, band: 0,
+    name: 'MAPLE APARTMENTS', roof: 59, band: 0, quota: 10,
     hazards: { granny: 16 },
     rows: [
     '############', // 0
@@ -278,7 +284,7 @@ const LEVELS = [
     '..B.........',
     '..B.........',
     '..B#########',
-    '.........F..', // 60
+    '....A.AA.F.C', // 60
     '............',
     '............',
     '............',
@@ -311,7 +317,7 @@ const LEVELS = [
     route: [
     { how: 'walk',  x: 40,  rb: 1 },
     { how: 'jump',  x: 104, rb: 3 },
-    { how: 'jump',  x: 62,  rb: 4, tol: 14 },
+    { how: 'jump',  x: 64,  rb: 4, tol: 5 },
     { how: 'jump',  x: 108, rb: 6, tol: 14 },
     { how: 'pipe',  x: 152, rb: 12 },
     { how: 'jump',  x: 120, rb: 13 },
@@ -321,7 +327,7 @@ const LEVELS = [
     { how: 'ride',  x: 104, rb: 32, minRb: 24, plat: 0 },
     { how: 'jump',  x: 56,  rb: 34 },
     { how: 'jump',  x: 104, rb: 36 },
-    { how: 'jump',  x: 144, rb: 38, tol: 14 },
+    { how: 'jump',  x: 144, rb: 38, tol: 6 },
     { how: 'jump',  x: 106, rb: 40, tol: 16 },
     { how: 'catch', x: 106, rb: 42, plat: 1 },
     { how: 'jump',  x: 166, rb: 44, tol: 14 },
@@ -333,7 +339,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'DOWNTOWN OFFICE', roof: 61, band: 2,
+    name: 'DOWNTOWN OFFICE', roof: 61, band: 2, quota: 12,
     hazards: { granny: 9, pigeon: 13 },
     rows: [
     '############', // 0
@@ -398,7 +404,7 @@ const LEVELS = [
     '.==.........',
     '............', // 60
     '#..#########',
-    '........F...',
+    '....A.A.F.AC',
     '............',
     '............',
     '............', // 65
@@ -418,7 +424,7 @@ const LEVELS = [
     route: [
       { how: 'walk',    x: 40,  rb: 1 },
       { how: 'jump',    x: 88,  rb: 3 },
-      { how: 'jump',    x: 132, rb: 4, tol: 16 },
+      { how: 'jump',    x: 124, rb: 4, tol: 5 },
       { how: 'jump',    x: 86,  rb: 6, tol: 12 },
       { how: 'walk',    x: 70,  rb: 6, tol: 3 },
       { how: 'smash',   x: 70,  rb: 6, dir: -1, tiles: [[3, 6]] },
@@ -426,27 +432,27 @@ const LEVELS = [
       { how: 'pipe',    x: 24,  rb: 13 },
       { how: 'jump',    x: 64,  rb: 14, tol: 12 },
       { how: 'jump',    x: 112, rb: 16, tol: 12 },
-      { how: 'jump',    x: 160, rb: 18, tol: 12 },
+      { how: 'jump',    x: 160, rb: 18, tol: 4 },
       { how: 'jump',    x: 136, rb: 20, tol: 12 },
       { how: 'wall',    wc: 5,  rb: 28 },
       { how: 'jump',    x: 144, rb: 27, tol: 24 },
       { how: 'ride',    x: 144, rb: 35, minRb: 27, plat: 0 },
       { how: 'jump',    x: 88,  rb: 37 },
       { how: 'jump',    x: 40,  rb: 39, tol: 14 },
-      { how: 'jump',    x: 48,  rb: 41, tol: 10 },
+      { how: 'jump',    x: 48,  rb: 41, tol: 6 },
       { how: 'jump',    x: 74,  rb: 43, tol: 10 },
       { how: 'catch',   x: 96,  rb: 45, plat: 1 },
       { how: 'jump',    x: 164, rb: 47, tol: 18 },
       { how: 'pipe',    x: 168, rb: 54 },
       { how: 'jump',    x: 128, rb: 56 },
       { how: 'jump',    x: 80,  rb: 58 },
-      { how: 'jump',    x: 32,  rb: 60, tol: 10 },
+      { how: 'jump',    x: 32,  rb: 60, tol: 6 },
       { how: 'jump',    x: 60,  rb: 62, tol: 12 },
       { how: 'walk',    x: 140, rb: 62, tol: 4 },
     ],
   },
   {
-    name: 'SKY TOWER', roof: 61, band: 5,
+    name: 'SKY TOWER', roof: 61, band: 5, quota: 14,
     hazards: { granny: 12, pigeon: 7, wind: 30 },
     rows: [
     '############', // 0
@@ -511,7 +517,7 @@ const LEVELS = [
     '...==.......',
     '............', // 60
     '###..#######',
-    '.........F..',
+    '......A.AF.C',
     '............',
     '............',
     '............', // 65
@@ -531,7 +537,7 @@ const LEVELS = [
     route: [
       { how: 'walk',    x: 40,  rb: 1 },
       { how: 'jump',    x: 104, rb: 3 },
-      { how: 'jump',    x: 62,  rb: 4, tol: 14 },
+      { how: 'jump',    x: 64,  rb: 4, tol: 5 },
       { how: 'jump',    x: 108, rb: 6, tol: 14 },
       { how: 'ride',    x: 136, rb: 12, minRb: 6, plat: 0 },
       { how: 'jump',    x: 88,  rb: 14 },
@@ -545,13 +551,13 @@ const LEVELS = [
       { how: 'pipe',    x: 168, rb: 37 },
       { how: 'jump',    x: 128, rb: 38 },
       { how: 'jump',    x: 80,  rb: 40 },
-      { how: 'jump',    x: 32,  rb: 42, tol: 10 },
+      { how: 'jump',    x: 32,  rb: 42, tol: 6 },
       { how: 'jump',    x: 60,  rb: 44, tol: 12 },
       { how: 'ride',    x: 112, rb: 52, minRb: 44, plat: 2 },
       { how: 'jump',    x: 160, rb: 54 },
       { how: 'jump',    x: 120, rb: 56 },
       { how: 'jump',    x: 72,  rb: 58 },
-      { how: 'jump',    x: 64,  rb: 60, tol: 12 },
+      { how: 'jump',    x: 64,  rb: 60, tol: 5 },
       { how: 'jump',    x: 92,  rb: 62, tol: 12 },
       { how: 'walk',    x: 156, rb: 62, tol: 4 },
     ],
@@ -969,7 +975,7 @@ function updateCrumbles(dt) {
 const input = { jumpBtn: false, jumpQ: false, smashBtn: false, smashQ: false, grabQ: false };
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const keys = {};
-const STICK_R = 46;
+const STICK_R = 40;
 const stickBase = $('#stickBase'), stickKnob = $('#stickKnob'), zone = $('#stickZone');
 
 function stickHome() {
@@ -1037,7 +1043,7 @@ function readStick() {
   if (keys.left) x = -1; if (keys.right) x = 1; if (keys.up) y = -1; if (keys.down) y = 1;
   // deadzone, then rescale so a medium push already gives full speed
   const ax = Math.abs(x), ay = Math.abs(y);
-  const ix = ax < 0.22 ? 0 : Math.sign(x) * Math.min(1, (ax - 0.22) / 0.55);
+  const ix = ax < 0.18 ? 0 : Math.sign(x) * Math.min(1, (ax - 0.18) / 0.42);
   const iy = ay < 0.35 ? 0 : Math.sign(y) * Math.min(1, (ay - 0.35) / 0.45);
   return [ix, iy];
 }
@@ -1064,7 +1070,7 @@ function makePlayer(key, x, cpu) {
     state: 'normal', onGround: true, coyote: 0, jumpBuf: 0, smashBuf: 0, lock: 0, grabLock: 0, dropT: 0,
     punchT: 0, punchCD: 0, jumps: 0, cut: true, ride: null, climbType: null, climbCol: 0, wallSide: 1, anim: 0,
     punchDir: 'side', charging: false, charge: 0, diving: false, superM: 0, rush: 0, held: null,
-    score: 0, combo: 0, lastBreak: -9, wrecked: 0, stun: 0, invuln: 0, calm: 0, grounded: false, hammerT: 0, speedT: 0, helmet: false, bestFloor: 1,
+    score: 0, combo: 0, lastBreak: -9, wrecked: 0, stun: 0, invuln: 0, calm: 0, grounded: false, lockMsg: -9, roofWait: 0, waived: false, hammerT: 0, speedT: 0, helmet: false, bestFloor: 1,
     ctrl: { ix: 0, iy: 0, jump: false, smash: false, jumpQ: false, smashQ: false, grabQ: false },
     ai: cpu ? makeBrain(key) : null };
 }
@@ -1145,7 +1151,7 @@ function updateNormal(p, dt, ix, iy) {
   p.ride = null;
 
   if (ix && !p.diving) p.facing = ix > 0 ? 1 : -1;
-  let run = c.run;
+  let run = c.run * (p.cpu && p.onGround ? p.cpuSpeed || 1 : 1);
   if (p.rush > 0) run *= 1.35;
   if (p.speedT > 0) run *= 1.3;
   if (p.charging && p.charge > 0.15) run *= 0.5;   // winding up a power hit slows you down
@@ -1183,7 +1189,7 @@ function updateNormal(p, dt, ix, iy) {
 
   if (landed) {
     if (!wasGround && fallV > 180) { sfx('land'); burst(p.x + p.w / 2, p.y + p.h, 4, ['#d8d0e8'], 30); }
-    p.onGround = true; p.coyote = 0.1; p.jumps = c.dbl ? 1 : 0; p.cut = true;
+    p.onGround = true; p.coyote = 0.13; p.jumps = c.dbl ? 1 : 0; p.cut = true;   // ...or a hair after running off a ledge
     // step on cracked planks -> they start to go
     const r = Math.floor((p.y + p.h + 1) / T);
     for (let cc = Math.floor(p.x / T); cc <= Math.floor((p.x + p.w - 0.001) / T); cc++) {
@@ -1211,7 +1217,7 @@ function updateClimb(p, dt, ix, iy) {
   if (p.climbType === 'pipe') {
     const col = p.climbCol;
     p.x = approach(p.x, col * T + T / 2 - p.w / 2, 160 * dt);
-    p.vy = iy * c.climb * (p.rush > 0 ? 1.35 : 1);
+    p.vy = iy * c.climb * (p.rush > 0 ? 1.35 : 1) * (p.cpu ? p.cpuSpeed || 1 : 1);
     if (p.jumpBuf > 0) { leaveClimb(p); doJump(p, c.jump * 0.85); p.vx = ix * c.run; return; }
     if (Math.abs(ix) > 0.7 && Math.abs(iy) < 0.4) { leaveClimb(p); p.vx = Math.sign(ix) * 50; return; }
     if (moveY(p, p.vy * dt, true)) { p.state = 'normal'; p.onGround = true; return; }
@@ -1230,7 +1236,7 @@ function updateClimb(p, dt, ix, iy) {
   p.facing = side;
   let v = 0;
   if (Math.abs(iy) > 0.1) v = iy; else if (ix * side > 0.3) v = -0.85;   // push into the wall = auto climb up
-  p.vy = v * c.climb * (p.rush > 0 ? 1.35 : 1);
+  p.vy = v * c.climb * (p.rush > 0 ? 1.35 : 1) * (p.cpu ? p.cpuSpeed || 1 : 1);
   if (p.jumpBuf > 0) {
     leaveClimb(p); p.jumpBuf = 0;
     p.vx = -side * c.wjx; p.vy = -c.wjy; p.facing = -side; p.lock = 0.14; p.cut = true;
@@ -1316,6 +1322,10 @@ function damageTile(c, r, dmg, by) {
     return;
   }
   winHP.delete(k); smashed++; by.wrecked++;
+  if (by.wrecked === LV.quota) {
+    popup(by.x + by.w / 2, by.y - 26, 'ROOF UNLOCKED!', '#5fe06e'); sfx('ready');
+    if (!by.cpu) banner = { lines: ['WRECK GOAL DONE!', 'THE ROOF IS OPEN', 'NOW CLIMB!'], t: 2.5 };
+  }
   grid[r][c] = t === 'w' ? 'x' : '.';
   by.combo = runTime - by.lastBreak < 1.1 ? by.combo + 1 : 1; by.lastBreak = runTime;
   const mult = Math.min(by.combo, 5), pts = info.pts * mult;
@@ -1608,7 +1618,14 @@ const BRAINS = {
   lyla: { greed: 1.6, aggro: 0.7, grabby: 1.2 },
   erik: { greed: 1.0, aggro: 0.9, grabby: 0.9 },
 };
-function makeBrain(key) { return { ...BRAINS[key], i: 0, t: 0, jumpHold: 0, chargeT: 0, smashT: 0, holdT: 0, wiggle: 0, wiggleDir: 1, detour: null, detourCD: 1, superTry: 0 }; }
+// how good the computer is
+const DIFFS = {
+  easy:   { speed: 0.75, pause: [0.5, 1.2],  err: 0.25, greedMul: 1.6, aggroMul: 0.45 },
+  normal: { speed: 0.87, pause: [0.25, 0.7], err: 0.12, greedMul: 1.3, aggroMul: 0.75 },
+  hard:   { speed: 1.0,  pause: [0, 0.12],   err: 0.03, greedMul: 1.0, aggroMul: 1.0 },
+};
+let difficulty = load('lve_diff', 'normal'), mode = load('lve_mode', 'vs');
+function makeBrain(key) { return { ...BRAINS[key], i: 0, t: 0, jumpHold: 0, chargeT: 0, smashT: 0, holdT: 0, wiggle: 0, wiggleDir: 1, detour: null, detourCD: 1, superTry: 0, newWp: -1, hesitate: 0, mistake: false }; }
 
 function surfaceAhead(p, dir) {
   const fx = dir > 0 ? p.x + p.w + 2 : p.x - 2, fy = p.y + p.h + 2;
@@ -1642,7 +1659,21 @@ function think(p, foe, dt) {
   }
   const wp = ROUTE[Math.min(ai.i, ROUTE.length - 1)];
   const wx = wp.how === 'wall' ? wp.wc * T + 8 : wp.x, dx = wx - cx, adx = Math.abs(dx), dir = Math.sign(dx) || 1;
-  if (routeDone(p, wp, rb, adx)) { ai.i++; ai.t = 0; return; }
+  if (routeDone(p, wp, rb, adx) && ai.i < ROUTE.length - 1) { ai.i++; ai.t = 0; return; }
+
+  // difficulty: how fast it moves, how long it dithers, how often it messes up.
+  // Way ahead of you? It eases off so the race stays close.
+  const D = DIFFS[difficulty], lead = rb - rbOf(foe);
+  p.cpuSpeed = D.speed * (lead > 10 ? 0.82 : 1);
+  if (ai.newWp !== ai.i) {
+    ai.newWp = ai.i;
+    ai.hesitate = (D.pause[0] + Math.random() * (D.pause[1] - D.pause[0])) * (lead > 10 ? 2 : 1);
+    ai.mistake = Math.random() < D.err;
+  }
+  // it has to hit the wreck goal too: the higher it gets without wrecking, the greedier it gets
+  const need = LV.quota - p.wrecked;
+  const behind = need > 0 && p.wrecked < LV.quota * Math.min(1, rb / ROOF_RB * 1.2 + 0.1);
+  const greed = ai.greed * D.greedMul * (behind ? 2.5 : 1), aggro = ai.aggro * D.aggroMul;
 
   if (ai.jumpHold > 0) { ai.jumpHold -= dt; k.jump = true; }
   if (ai.chargeT > 0) {   // winding up a power hit / super
@@ -1658,7 +1689,7 @@ function think(p, foe, dt) {
   // Hunter popping out right next to us? bop him before he grabs
   if (hunter.target === p && (hunter.phase === 'peek' || hunter.phase === 'reach') && p.state === 'normal') {
     const hdx = hunter.win.c * T + 8 - cx, hdy = hunter.win.r * T + 8 - (p.y + p.h / 2);
-    if (Math.abs(hdx) < 22 && Math.abs(hdy) < 18 && p.punchCD <= 0 && Math.random() < ai.aggro * dt * 12) {
+    if (Math.abs(hdx) < 22 && Math.abs(hdy) < 18 && p.punchCD <= 0 && Math.random() < aggro * dt * 12) {
       if (Math.sign(hdx) && Math.sign(hdx) !== p.facing) { k.ix = Math.sign(hdx) * 0.3; return; }
       k.smashQ = true; return;
     }
@@ -1671,7 +1702,7 @@ function think(p, foe, dt) {
   }
   if (safe && p.superM >= 1 && p.punchCD <= 0 && ai.superTry < 3) { k.smashQ = true; k.smash = true; ai.chargeT = 0.55; ai.superTry++; return; }
   if (p.superM < 1) ai.superTry = 0;
-  if (foe.invuln <= 0 && foe.stun <= 0 && Math.abs(fdx) < 17 && Math.abs(fdy) < 14 && p.punchCD <= 0 && Math.random() < ai.aggro * dt * 8) {
+  if (foe.invuln <= 0 && foe.stun <= 0 && Math.abs(fdx) < 17 && Math.abs(fdy) < 14 && p.punchCD <= 0 && Math.random() < aggro * dt * 8) {
     if (Math.sign(fdx) && Math.sign(fdx) !== p.facing) { k.ix = Math.sign(fdx) * 0.3; return; }
     if (Math.random() < 0.3) { k.smashQ = true; k.smash = true; ai.chargeT = 0.45; } else k.smashQ = true;   // sometimes a power hit
     return;
@@ -1680,16 +1711,17 @@ function think(p, foe, dt) {
     if (ai.smashT > 0) { ai.smashT -= dt; if (p.punchCD <= 0) k.smashQ = true; return; }
     if (windowTarget(p) && Math.random() < ai.grabby * dt * 4) { k.grabQ = true; return; }
     const br = Math.floor((p.y + p.h / 2) / T), t = tileAt(Math.floor(cx / T), br);
-    if (t === 'w' && Math.random() < ai.greed * dt * 5) { ai.smashT = 0.45; return; }
+    if (t === 'w' && Math.random() < greed * dt * 5) { ai.smashT = 0.45; return; }
     // window right above our head: uppercut it
-    if (tileAt(Math.floor(cx / T), Math.floor((p.y - 6) / T)) === 'w' && p.punchCD <= 0 && Math.random() < ai.greed * dt * 4) { k.iy = -1; k.smashQ = true; return; }
+    if (tileAt(Math.floor(cx / T), Math.floor((p.y - 6) / T)) === 'w' && p.punchCD <= 0 && Math.random() < greed * dt * 4) { k.iy = -1; k.smashQ = true; return; }
     // on solid ground? wander over to a window or two nearby and wreck it
     ai.detourCD -= dt;
     const under = tileAt(Math.floor(cx / T), Math.floor((p.y + p.h + 1) / T));
     if (!ai.detour && ai.detourCD <= 0 && !p.ride && (under === '#' || under === 'B')) {
-      ai.detourCD = 0.6 / ai.greed;
+      ai.detourCD = 0.6 / greed;
       let best = null;
-      for (let c = Math.floor(cx / T) - 3; c <= Math.floor(cx / T) + 3; c++) {
+      const range = behind ? 5 : 3;
+      for (let c = Math.floor(cx / T) - range; c <= Math.floor(cx / T) + range; c++) {
         const tt = tileAt(c, br);
         if (tt !== 'w' && !(tt === 'x' && homes.has(br * COLS + c))) continue;
         let ok = true;   // only walk over solid floor to get there
@@ -1697,7 +1729,7 @@ function think(p, foe, dt) {
           if (!isSolid(tileAt(cc, br + 1)) || isSolid(tileAt(cc, br))) ok = false;
         if (ok && (!best || Math.abs(c * T + 8 - cx) < Math.abs(best.c * T + 8 - cx))) best = { c, r: br };
       }
-      if (best && Math.random() < Math.min(1, ai.greed * 0.6)) ai.detour = { ...best, t: 2 };
+      if (best && Math.random() < Math.min(1, greed * 0.6)) ai.detour = { ...best, t: 2 };
     }
     if (ai.detour) {
       const d = ai.detour, tt = tileAt(d.c, d.r), ddx = d.c * T + 8 - cx;
@@ -1721,6 +1753,22 @@ function think(p, foe, dt) {
     return;
   }
 
+  // on the roof but still short of the wreck goal: smash the roof junk
+  if (need > 0 && !p.waived && ai.i >= ROUTE.length - 1 && rb > ROOF_RB && p.state === 'normal') {
+    const br = Math.floor((p.y + p.h / 2) / T);
+    let best = null;
+    for (let c = 0; c < COLS; c++) if (BREAKABLE[tileAt(c, br)] && (best === null || Math.abs(c * T + 8 - cx) < Math.abs(best * T + 8 - cx))) best = c;
+    if (best !== null) {
+      const ddx = best * T + 8 - cx;
+      if (Math.abs(ddx) > 15) k.ix = Math.sign(ddx);
+      else if (Math.sign(ddx) && Math.sign(ddx) !== p.facing) k.ix = Math.sign(ddx) * 0.3;
+      else if (p.punchCD <= 0) k.smashQ = true;
+      return;
+    }
+  }
+  // a little hesitation at each step (never while standing on something wobbly)
+  if (ai.hesitate > 0 && safe && wp.how !== 'ride' && wp.how !== 'catch') { ai.hesitate -= dt; return; }
+
   // ---- follow the route ----
   const reach = p.c.run * 0.36;
   switch (wp.how) {
@@ -1739,7 +1787,8 @@ function think(p, foe, dt) {
         }
         if (p.ride && adx > reach) break;            // let the cart carry us closer
         k.ix = adx > 3 ? dir : 0;
-        if (adx < reach || !surfaceAhead(p, dir)) { k.jumpQ = true; ai.jumpHold = 0.45; }
+        if (adx < reach || !surfaceAhead(p, dir)) { k.jumpQ = true; ai.jumpHold = 0.45; ai.mistake = false; }
+        else if (ai.mistake && adx < reach * 2.3) { k.jumpQ = true; ai.jumpHold = 0.3; ai.mistake = false; }   // oops, jumped too early
       } else {
         k.ix = adx > 3 ? dir : 0;
         // Erik: double jump if we're dropping short of the ledge
@@ -1988,8 +2037,10 @@ function startVisit(target) {
   const other = actors.find(a => a !== target);
   Object.assign(hunter, { phase: 'hidden', t: 1.0, visitT: 11, target, win: null });
   banner = { lines: ["HUNTER'S HOME!", `HE'S AFTER ${target.c.name}!`, target.cpu ? 'KEEP WRECKING!' : "DON'T GET GROUNDED!"], t: 3.5, hunter: true };
-  other.superM = Math.min(1, other.superM + 0.4);   // dad's helping the one who's behind
-  popup(other.x + other.w / 2, other.y - 14, 'SNACK! +SUPER', '#ff9d4a');
+  if (other) {   // dad's helping the one who's behind
+    other.superM = Math.min(1, other.superM + 0.4);
+    popup(other.x + other.w / 2, other.y - 14, 'SNACK! +SUPER', '#ff9d4a');
+  }
   sfx('whistle');
 }
 
@@ -2196,13 +2247,13 @@ function startGame(key) {
   buildLevel();
   const other = key === 'lyla' ? 'erik' : 'lyla';
   player = makePlayer(key, spawn.x, false);
-  rival = makePlayer(other, spawn.x + 22, true);
-  actors = [player, rival];
+  rival = mode === 'vs' ? makePlayer(other, spawn.x + 22, true) : null;
+  actors = rival ? [player, rival] : [player];
   Object.assign(hunter, { phase: 'off', t: 0, cd: 18, visitT: 0, target: null, win: null });
   resetHazards();
   time = 0; runTime = 0; smashed = 0; countdown = 3;
   particles = []; popups = []; rings = []; hitstop = 0;
-  banner = { lines: [`TOWER ${levelIdx + 1}: ${LV.name}`, `RACE ${CHARS[other].name} TO THE ROOF!`, 'MOST POINTS WINS'], t: 5 };
+  banner = { lines: [`TOWER ${levelIdx + 1}: ${LV.name}`, `WRECK ${LV.quota} THINGS,`, rival ? `THEN BEAT ${CHARS[other].name} UP!` : 'THEN HIT THE ROOF!'], t: 5 };
   cam.y = camMax(); cam.shake = 0;
   input.jumpQ = input.smashQ = input.grabQ = false;
   state = 'play';
@@ -2215,20 +2266,21 @@ function endRound(first) {
   state = 'win';
   first.score += ROOF_BONUS;
   const you = player, them = rival;
-  const youWin = you.score >= them.score;
+  const youWin = !them || you.score >= them.score;
   sfx(youWin ? 'win' : 'lose');
   if (youWin && levelIdx + 1 < LEVELS.length && load('lve_unlocked', 1) < levelIdx + 2) save('lve_unlocked', levelIdx + 2);
   $('#btnNext').style.display = youWin && levelIdx + 1 < LEVELS.length ? '' : 'none';
   $('#btnAgain').textContent = youWin ? 'PLAY AGAIN' : 'TRY AGAIN';
-  const bestKey = 'lve_hi_' + charKey + '_' + levelIdx, best = load(bestKey, 0);
+  const bestKey = 'lve_hi_' + mode + '_' + charKey + '_' + levelIdx, best = load(bestKey, 0);
   const newBest = you.score > best;
   if (newBest) save(bestKey, you.score);
   const fmt = s => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   const col = a => `<b style="color:${a.c.color}">`;
-  $('#winTitle').innerHTML = youWin ? (levelIdx + 1 === LEVELS.length ? 'TOWERS<br>CHAMPION!' : 'YOU<br>WIN!') : `${them.c.name}<br>WINS!`;
+  $('#winTitle').innerHTML = !them ? 'TOWER<br>CLEARED!' : youWin ? (levelIdx + 1 === LEVELS.length ? 'TOWERS<br>CHAMPION!' : 'YOU<br>WIN!') : `${them.c.name}<br>WINS!`;
   $('#winTitle').style.color = youWin ? you.c.color : them.c.color;
-  $('#winLines').innerHTML =
-    `${col(first)}${first.c.name}</b> HIT THE ROOF<br>FIRST! +${ROOF_BONUS}<br><br>` +
+  $('#winLines').innerHTML = !them
+    ? `SOLO PRACTICE<br><br>SCORE ${col(you)}${you.score}</b><br>WRECKED <b>${you.wrecked}</b><br><br>`
+    : `${col(first)}${first.c.name}</b> HIT THE ROOF<br>FIRST! +${ROOF_BONUS}<br><br>` +
     `${col(you)}${you.c.name}</b> ${col(you)}${you.score}</b><br>` +
     `${col(them)}${them.c.name}</b> ${col(them)}${them.score}</b><br><br>` +
     `TIME <b>${fmt(runTime)}</b> &middot; DMG <b>${damagePct()}%</b><br>` +
@@ -2274,7 +2326,7 @@ function updateActor(p, dt) {
     k.jumpQ = k.smashQ = k.grabQ = false;
     if (Math.random() < 0.3) particles.push({ x: p.x + p.w / 2 + Math.cos(time * 12) * 7, y: p.y - 3 + Math.sin(time * 12) * 2, vx: 0, vy: 0, life: 0.12, c: '#ffd84a', s: 1 });
   }
-  if (k.jumpQ) { p.jumpBuf = 0.13; k.jumpQ = false; }
+  if (k.jumpQ) { p.jumpBuf = 0.18; k.jumpQ = false; }   // press jump a hair early and it still counts
   if (k.smashQ) { p.smashBuf = 0.2; k.smashQ = false; }
   if (k.grabQ) { k.grabQ = false; doGrab(p, ix, iy); }
   if (p.smashBuf > 0 && p.held) { p.smashBuf = 0; throwHeld(p, ix, iy); }
@@ -2322,8 +2374,8 @@ function step(dt) {
   if (input.grabQ) k.grabQ = true;
   input.jumpQ = input.smashQ = input.grabQ = false;
   // the CPU brain -> the other kid
-  if (!rival.grounded) think(rival, player, dt);
-  if (rival.ctrl.jumpQ) rival.ctrl.jump = true;   // hold the button from the very first frame = full jump
+  if (rival && !rival.grounded) think(rival, player, dt);
+  if (rival && rival.ctrl.jumpQ) rival.ctrl.jump = true;   // hold the button from the very first frame = full jump
 
   for (const a of actors) {
     if (a.grounded) continue;   // Hunter's got them
@@ -2338,7 +2390,19 @@ function step(dt) {
 
   // first one to touch the flag ends the race
   for (const a of actors)
-    if (!a.grounded && a.x + a.w > flag.x && a.x < flag.x + 26 && a.y + a.h > flag.y - 24 && a.y < flag.y + T) { startFinish(a); break; }
+    if (!a.grounded && a.x + a.w > flag.x && a.x < flag.x + 26 && a.y + a.h > flag.y - 24 && a.y < flag.y + T) {
+      if (a.wrecked >= LV.quota || a.waived) { startFinish(a); break; }
+      if (!a.cpu && runTime - a.lockMsg > 1.5) { a.lockMsg = runTime; popup(flag.x + 8, flag.y - 30, `WRECK ${LV.quota - a.wrecked} MORE!`, '#ff5a5a'); sfx('bop'); }
+    }
+  // up on the roof, short of the goal, and nothing left up here to break? let them finish anyway
+  for (const a of actors) {
+    if (a.wrecked >= LV.quota || a.waived || rbOf(a) <= ROOF_RB) continue;
+    const br = Math.floor((a.y + a.h / 2) / T);
+    let left = 0; for (let c = 0; c < COLS; c++) if (BREAKABLE[tileAt(c, br)]) left++;
+    a.roofWait = left ? 0 : a.roofWait + dt;
+    a.roofTime = (a.roofTime || 0) + dt;   // safety net: never stuck up there forever
+    if (a.roofWait > 4 || a.roofTime > 12) { a.waived = true; popup(a.x + a.w / 2, a.y - 14, 'ROOF UNLOCKED!', '#5fe06e'); }
+  }
   // "FLOOR 3!" as you climb past each one
   const fr = clamp(Math.floor((player.y + player.h - 1) / T), 0, ROWS - 1), fl = bandOf[fr] - LV.band + 1;
   if (fl > player.bestFloor && rbOf(player) <= ROOF_RB) { player.bestFloor = fl; if (fl > 1) { popup(player.x + player.w / 2, player.y - 16, 'FLOOR ' + fl + '!', '#8fd8ff'); sfx('floor'); } }
@@ -2638,13 +2702,15 @@ function drawHUD() {
   const p = player, y = safeTop;
   rect(0, 0, W, y + 26, 'rgba(12,6,30,0.7)');
   text(String(p.score).padStart(6, '0'), 4, y + 3, p.c.color);
-  text(String(rival.score).padStart(6, '0'), W - 4, y + 3, rival.c.color, 'right');
+  if (rival) text(String(rival.score).padStart(6, '0'), W - 4, y + 3, rival.c.color, 'right');
+  else text('SOLO', W - 4, y + 3, '#9d90cc', 'right');
   // SUPER meter
   const full = p.superM >= 1, blink = full && Math.floor(time * 6) % 2;
   rect(4, y + 16, 52, 6, '#140a20');
   rect(5, y + 17, 50 * p.superM, 4, blink ? '#ffffff' : full ? '#ff9d4a' : '#e4443a');
   ctx.globalAlpha = 0.9; text(full ? 'SUPER!' : 'SUPER', 60, y + 15, full ? '#ff9d4a' : '#9d90cc'); ctx.globalAlpha = 1;
-  text(`DMG ${damagePct()}%`, W - 4, y + 15, '#ff7ad9', 'right');
+  const done = p.wrecked >= LV.quota || p.waived;
+  text(done ? 'ROOF OPEN!' : `WRECK ${p.wrecked}/${LV.quota}`, W - 4, y + 15, done ? '#5fe06e' : '#ff7ad9', 'right');
   if (p.rush > 0) text('RUSH ' + Math.ceil(p.rush), W / 2, y + 30, '#5fe06e', 'center');
   // power-ups you've got going
   let px = 4;
@@ -2654,7 +2720,7 @@ function drawHUD() {
   }
   if (hz.warn && Math.floor(time * 6) % 2) text(hz.warn > 0 ? 'WIND >>>' : '<<< WIND', W / 2, y + 52, '#8fd8ff', 'center');
   if (hunter.phase !== 'off' && Math.floor(time * 4) % 2)
-    text(hunter.target === p ? 'HUNTER IS AFTER YOU!' : `HUNTER IS AFTER ${rival.c.name}`, W / 2, y + (p.rush > 0 ? 40 : 30), '#ff5a5a', 'center');
+    text(hunter.target === p ? 'HUNTER IS AFTER YOU!' : `HUNTER IS AFTER ${hunter.target.c.name}`, W / 2, y + (p.rush > 0 ? 40 : 30), '#ff5a5a', 'center');
   if (countdown > 0) {
     const n = Math.ceil(countdown), f = countdown % 1;
     ctx.save(); ctx.translate(W / 2, H * 0.36); ctx.scale(2 + f, 2 + f);
@@ -2676,9 +2742,9 @@ function drawHUD() {
   const bx = W - 5, by = y + 32, bh = 70, prog = clamp((LH - (p.y + p.h)) / (LH - flag.y), 0, 1);
   rect(bx, by, 3, bh, 'rgba(0,0,0,0.45)');
   rect(bx, by + bh * (1 - prog), 3, bh * prog, p.c.color);
-  const rprog = clamp((LH - (rival.y + rival.h)) / (LH - flag.y), 0, 1);
-  rect(bx - 3, by + bh * (1 - rprog) - 1, 3, 3, rival.c.color);
+  if (rival) { const rprog = clamp((LH - (rival.y + rival.h)) / (LH - flag.y), 0, 1); rect(bx - 3, by + bh * (1 - rprog) - 1, 3, 3, rival.c.color); }
   rect(bx - 2, by + bh * (1 - prog) - 1, 7, 2, '#fff');
+  if (!rival) return;
   // where's the rival? arrow at the screen edge when they're off camera
   const ry = rival.y + rival.h / 2 - cam.y, rx = clamp(rival.x + rival.w / 2, 18, W - 26);
   if (ry < y + 30 || ry > H + 6) {
@@ -2697,10 +2763,16 @@ function render() {
   const sx = cam.shake ? (Math.random() * 2 - 1) * cam.shake : 0, sy = cam.shake ? (Math.random() * 2 - 1) * cam.shake : 0;
   ctx.setTransform(1, 0, 0, 1, Math.round(sx), Math.round(-cam.y + sy));
   drawWorld();
+  if (!(player.wrecked >= LV.quota || player.waived)) {   // padlock on the flag until you've wrecked enough
+    const lx = flag.x + 9, ly = flag.y - 12;
+    rect(lx + 1, ly - 4, 6, 1, '#c8c8d8'); rect(lx, ly - 3, 1, 4, '#c8c8d8'); rect(lx + 7, ly - 3, 1, 4, '#c8c8d8');
+    rect(lx - 1, ly, 10, 8, '#ffd84a'); rect(lx - 1, ly, 10, 1, '#fff3b0'); rect(lx + 3, ly + 3, 2, 3, '#7a5a10');
+    if (Math.floor(time * 2) % 2) text(`WRECK ${LV.quota - player.wrecked}`, flag.x + 12, ly - 16, '#ff5a5a', 'center');
+  }
   drawHazards();
   drawPickups();
   for (const it of items) if (it.state !== 'held') drawItem(it);
-  if (!rival.grounded) { drawPlayer(rival); if (rival.held) drawItem(rival.held); }
+  if (rival && !rival.grounded) { drawPlayer(rival); if (rival.held) drawItem(rival.held); }
   if (!player.grounded) drawPlayer(player);
   drawHunter();
   if (player.held) drawItem(player.held);
@@ -2749,6 +2821,17 @@ function drawTowerPicker() {
   });
 }
 drawTowerPicker();
+function drawModePicker() {
+  document.querySelectorAll('#modes .sbtn').forEach(b => b.classList.toggle('sel', b.dataset.m === mode));
+  document.querySelectorAll('#diffs .sbtn').forEach(b => b.classList.toggle('sel', b.dataset.d === difficulty));
+  $('#diffs').style.visibility = mode === 'vs' ? 'visible' : 'hidden';
+  $('#modeHint').innerHTML = mode === 'vs'
+    ? 'THE OTHER KID IS THE COMPUTER<br>WRECK THE GOAL, HIT THE ROOF, MOST POINTS WINS'
+    : 'NO RIVAL: LEARN THE TOWER<br>HUNTER, GRANDMAS + PIGEONS STILL OUT THERE!';
+}
+document.querySelectorAll('#modes .sbtn').forEach(b => b.addEventListener('click', () => { mode = b.dataset.m; save('lve_mode', mode); drawModePicker(); }));
+document.querySelectorAll('#diffs .sbtn').forEach(b => b.addEventListener('click', () => { difficulty = b.dataset.d; save('lve_diff', difficulty); drawModePicker(); }));
+drawModePicker();
 document.querySelectorAll('.bar').forEach(b => {
   for (let i = 0; i < 5; i++) { const s = document.createElement('i'); if (i < +b.dataset.v) s.className = 'on'; b.appendChild(s); }
 });
