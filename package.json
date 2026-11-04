@@ -1,0 +1,12 @@
+{
+  "name": "lyla-vs-erik",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lyla vs Erik: Tower Wreckers - a 90s-style climbing smash-'em-up for phones",
+  "scripts": {
+    "start": "serve . -l tcp://0.0.0.0:${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
+}
